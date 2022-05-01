@@ -70,6 +70,9 @@ func (c *Chatroom) goodbye() {
 }
 
 func (c *Chatroom) broadcast(sender *User, message string, self bool) error {
+	c.rw.RLock()
+	defer c.rw.RUnlock()
+
 	for _, user := range c.UserMap {
 		if self || sender.Name != user.Name {
 			err := user.Send(message)
