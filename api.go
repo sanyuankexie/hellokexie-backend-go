@@ -3,15 +3,13 @@ package main
 import "encoding/json"
 
 type Request struct {
-	UserName string      `json:"userName"`
-	Type     string      `json:"type"`
-	Data     RequestData `json:"data"`
+	Type string `json:"type"`
+	Data *Data  `json:"data"`
 }
 
 type Response struct {
-	UserName string      `json:"userName"`
-	Type     string      `json:"type"`
-	Data     interface{} `json:"data"`
+	Type string `json:"type"`
+	Data *Data  `json:"data"`
 }
 
 func ParseRequest(message string) (*Request, error) {
@@ -24,56 +22,83 @@ func ParseRequest(message string) (*Request, error) {
 	return &request, nil
 }
 
-type RequestData struct {
-	X        int      `json:"x"`
-	Y        int      `json:"y"`
-	Avatar   string   `json:"avatar"`
-	Visitor  bool     `json:"visitor"`
-	Position Position `json:"position"`
+type Data struct {
+	Name       string   `json:"name"`
+	Avatar     string   `json:"avatar"`
+	Visitor    bool     `json:"visitor"`
+	Content    string   `json:"content"`
+	Position   Position `json:"position"`
+	OnlineUser []*User  `json:"onlineUser"`
 }
 
-func CreateResponse(tp string, data any, userName string) string {
+type Position struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+func CreateResponse(tp string, data *Data) string {
 	response := Response{
-		UserName: userName,
-		Type:     tp,
-		Data:     data,
+		Type: tp,
+		Data: data,
 	}
 	bytes, _ := json.Marshal(&response)
 	return string(bytes)
 }
 
 func HelloMessage(newUser *User) string {
-	return CreateResponse(HelloType, "hello "+newUser.Name, newUser.Name)
+	return CreateResponse(
+		HelloType,
+		&Data{
+			Name: newUser.Name,
+		},
+	)
 }
 
-func MoveMessage(user *User, data any) string {
-	return CreateResponse(MoveType, data, user.Name)
+func MoveMessage(user *User, data *Data) string {
+	return CreateResponse(
+		MoveType,
+		data,
+	)
 }
 
-func TalkMessage(user *User, data any) string {
-	return CreateResponse(MoveType, data, user.Name)
+func TalkMessage(user *User, data *Data) string {
+	return CreateResponse(
+		TalkType,
+		data,
+	)
 }
 
 func EnterMessage(user *User) string {
-	response := struct {
-		Avatar   string   `json:"avatar"`
-		Position Position `json:"position"`
-		Visitor  bool     `json:"visitor"`
-	}{
-		Avatar:   user.Avatar,
-		Position: user.Position,
-		Visitor:  user.Visitor,
-	}
-
-	return CreateResponse(EnterType, response, user.Name)
+	return CreateResponse(
+		EnterType,
+		&Data{
+			Name:   user.Name,
+			Avatar: user.Avatar,
+			Position: Position{
+				X: user.Position.X,
+				Y: user.Position.Y,
+			},
+			Visitor: user.Visitor,
+		},
+	)
 }
 
 func StandUpMessage(user *User, onlineUserList []*User) string {
-	return CreateResponse(StandUpType, onlineUserList, user.Name)
+	return CreateResponse(
+		StandUpType,
+		&Data{
+			OnlineUser: onlineUserList,
+		},
+	)
 }
 
 func LeaveMessage(user *User) string {
-	return CreateResponse(LeaveType, nil, user.Name)
+	return CreateResponse(
+		LeaveType,
+		&Data{
+			Name: user.Name,
+		},
+	)
 }
 
 const (

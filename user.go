@@ -1,19 +1,18 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/gorilla/websocket"
 )
 
 type User struct {
-	Name     string   `json:"userName"`
+	Name     string   `json:"name"`
 	Position Position `json:"position"`
 	Avatar   string   `json:"avatar"`
 	Visitor  bool     `json:"visitor"`
 
-	connect *websocket.Conn `json:"-"`
+	connect *websocket.Conn
 }
 
 func (u *User) Send(message string) error {
@@ -42,41 +41,49 @@ func (u *User) listen(chatroom *Chatroom) {
 		request, err := ParseRequest(string(message))
 		if err != nil {
 			log.Printf("parse request err: %s\n", err.Error())
-			fmt.Printf("[%s]\n", string(message))
-			chatroom.broadcast(u, string(message), true)
 			continue
 		}
 
 		switch request.Type {
 
 		case MoveType:
-			request.Data.Position.X = request.Data.X
-			request.Data.Position.Y = request.Data.Y
 			u.Position = request.Data.Position
-			chatroom.broadcast(u, MoveMessage(u, request.Data.Position), false)
+			chatroom.broadcast(u, MoveMessage(u, request.Data), false)
 
 		case TalkType:
-			// todo
-			chatroom.broadcast(u, string(message), false)
+			chatroom.broadcast(u, TalkMessage(u, request.Data), true)
 
 		case RenameType:
-			u.Name = request.UserName
+			// prevent same name
+			chatroom.rw.RLock()
+
+			var response = true
+			for _, user := range chatroom.UserMap {
+				if user.Name == request.Data.Name {
+					response = false
+					break
+				}
+			}
+			chatroom.rw.RUnlock()
+
+			if response == false {
+				continue
+			}
+
+			u.Name = request.Data.Name
 			chatroom.broadcast(u, EnterMessage(u), false)
 
 		case StandUpType:
-			onlineUserList := []*User{}
+			chatroom.rw.RLock()
+			var onlineUserList []*User
 			for _, user := range chatroom.UserMap {
 				onlineUserList = append(onlineUserList, user)
 			}
+			chatroom.rw.RUnlock()
 
 			u.Send(StandUpMessage(u, onlineUserList))
 
 		default:
 		}
 	}
-}
-
-type Position struct {
-	X int `json:"x"`
-	Y int `json:"y"`
 }
